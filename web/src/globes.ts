@@ -36,7 +36,6 @@ export class WorldGlobe {
       .atmosphereAltitude(0.12)
       .width(el.clientWidth)
       .height(el.clientHeight)
-      .onGlobeClick(({ lat, lng: x }) => onClick(lat, x))
       .htmlElementsData([])
       .htmlLat((d) => (d as Pin).lat)
       .htmlLng((d) => lng((d as Pin).lon))
@@ -48,6 +47,23 @@ export class WorldGlobe {
     material.needsUpdate = true;
     this.globe.pointOfView({ lat: 15, lng: 0, altitude: 2.1 });
     new ResizeObserver(() => this.globe.width(el.clientWidth).height(el.clientHeight)).observe(el);
+
+    // globe.gl only reports a click after it has seen the pointer hover, so the first click
+    // after load and most taps on a phone are lost. Detect a press without a drag ourselves.
+    let down: { x: number; y: number; t: number } | null = null;
+    el.addEventListener('pointerdown', (e) => {
+      down = { x: e.clientX, y: e.clientY, t: performance.now() };
+    });
+    el.addEventListener('pointerup', (e) => {
+      if (!down || (e.target as HTMLElement).closest('.pin')) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+      const held = performance.now() - down.t;
+      down = null;
+      if (moved > 5 || held > 600) return; // that was a drag to rotate
+      const box = el.getBoundingClientRect();
+      const hit = this.globe.toGlobeCoords(e.clientX - box.left, e.clientY - box.top);
+      if (hit) onClick(hit.lat, hit.lng);
+    });
   }
 
   async setTexture(url: string): Promise<void> {
