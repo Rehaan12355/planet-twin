@@ -51,6 +51,8 @@ export function formatValue(f: FeatureDef, v: number): string {
       return `${num(v)} K (${num(v - 273.15)} °C)`;
     case 'diurnal_range':
       return `${num(v)} K`;
+    case 'rain_mm':
+      return `${num(v)} mm`;
     default:
       return num(v, 2);
   }
@@ -71,6 +73,8 @@ const TESTS: Record<string, string> = {
   mean_temp: 'Cold-soak tests of batteries, lubricants and seals: the yearly mean surface temperature is close.',
   diurnal_range: 'Thermal cycling of hardware: the swing between day and night is close to the target’s.',
   albedo: 'Camera exposure, navigation imaging and solar heating: the ground reflects a similar share of sunlight.',
+  rain_mm: 'Dust, dry-soil handling and long unattended deployments: it almost never rains here.',
+  ndvi: 'Sampling and imaging of bare rock and soil: almost nothing grows here.',
 };
 
 export function renderPassport(el: HTMLElement, p: PassportInput): void {
@@ -80,7 +84,7 @@ export function renderPassport(el: HTMLElement, p: PassportInput): void {
   const ec = cellCentre(p.earth.meta, cellOfRow(p.earth, p.earthRow));
   const relative = p.mode === 'relative';
 
-  const rows = p.earth.meta.features.map((f) => {
+  const rows = p.earth.meta.features.filter((f) => !relative || f.relative).map((f) => {
     const t = valueAt(p.target, p.targetRow, f.name);
     const e = valueAt(p.earth, p.earthRow, f.name);
     const missing = Number.isNaN(t) || Number.isNaN(e);
@@ -111,15 +115,11 @@ export function renderPassport(el: HTMLElement, p: PassportInput): void {
 
   const weak = rows.filter((r) => !r.missing && r.m < 0.3);
   const strong = rows.filter((r) => !r.missing && r.m >= 0.6).sort((a, b) => b.m - a.m);
-  const rain = valueAt(p.earth, p.earthRow, 'rain_mm');
-  const ndvi = valueAt(p.earth, p.earthRow, 'ndvi');
   const snow = valueAt(p.earth, p.earthRow, 'snow_frac');
 
   const breaks: string[] = weak.map(
     (r) => `${esc(r.f.label)}: ${formatValue(r.f, r.e)} here against ${formatValue(r.f, r.t)} on ${body.name}.`,
   );
-  if (!Number.isNaN(rain)) breaks.push(`Rain and snowfall: ${num(rain)} mm a year here. ${targetWorld === 'mars' ? 'No rain falls on Mars.' : 'The Moon has no weather.'}`);
-  if (!Number.isNaN(ndvi)) breaks.push(`Plant cover: vegetation index ${num(ndvi, 2)} (${ndvi < 0.2 ? 'barren or nearly so' : ndvi < 0.5 ? 'sparse to moderate plants' : 'dense plants'}). The target has none.`);
   if (!Number.isNaN(snow) && snow >= 0.05) breaks.push(`Snow lies on the ground about ${num(snow * 100)}% of the year.`);
   breaks.push(`Gravity: 9.81 m/s² here against ${body.gravity} m/s² on ${body.name}. No place on Earth changes that.`);
   breaks.push(`Air: about 1,013 hPa at sea level here against ${body.air}.`);

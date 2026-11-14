@@ -5,7 +5,7 @@ from pipeline import config, grid, validate
 
 class FakeWorld:
     groups = ["terrain", "terrain", "temperature", "temperature", "albedo"]
-    tolerance = np.array([f["tolerance"] for f in config.FEATURES], np.float32)
+    tolerance = np.array([f["tolerance"] for f in config.FEATURES[:5]], np.float32)
 
     def __init__(self, features):
         self.features = np.array(features, np.float32)

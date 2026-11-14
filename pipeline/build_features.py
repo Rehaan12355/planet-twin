@@ -31,6 +31,15 @@ FEATURE_LABELS = {
     "mean_temp": ("Mean surface temperature", "temperature"),
     "diurnal_range": ("Day-night temperature range", "temperature"),
     "albedo": ("Albedo", "albedo"),
+    "rain_mm": ("Yearly rain and snowfall", "dryness"),
+    "ndvi": ("Plant cover (vegetation index)", "dryness"),
+}
+# Rain and plant cover are zero everywhere on Mars and the Moon, so they have no rank
+# within those worlds and are left out of the relative (hometown) match.
+PHYSICAL_ONLY = {"rain_mm", "ndvi"}
+DRY_SOURCES = {
+    "rain_mm": "No rain or snow falls here; set to 0",
+    "ndvi": "Nothing grows here; set to 0",
 }
 SCORED = [f["name"] for f in config.FEATURES]
 
@@ -51,8 +60,11 @@ def build_mars() -> tuple[dict, dict, list]:
         "mean_temp": grid.regrid_bilinear(temp, glat, glon, lat, lon),
         "diurnal_range": grid.regrid_bilinear(swing, glat, glon, lat, lon),
         "albedo": albedo,
+        "rain_mm": np.zeros_like(albedo),
+        "ndvi": np.zeros_like(albedo),
     }
     sources = {
+        **DRY_SOURCES,
         "mean_slope": "MGS MOLA MEGDR topography, 16 pixels per degree (NASA PDS)",
         "local_relief": "MGS MOLA MEGDR topography, 16 pixels per degree (NASA PDS)",
         "mean_temp": f"NASA Ames Legacy Mars GCM surface temperature, {sols} sols spread over one Mars year, 5 x 6 degree model grid",
@@ -88,7 +100,10 @@ def build_moon() -> tuple[dict, dict, list]:
         "diurnal_range": grid.block_reduce(tmax - tmin, 2),
         "albedo": grid.block_reduce(moon.read_lola_albedo(), 4),
     }
+    cols["rain_mm"] = np.zeros_like(cols["albedo"])
+    cols["ndvi"] = np.zeros_like(cols["albedo"])
     sources = {
+        **DRY_SOURCES,
         "mean_slope": "LRO LOLA gridded elevation LDEM_16, averaged to 8 pixels per degree (NASA PDS)",
         "local_relief": "LRO LOLA gridded elevation LDEM_16, averaged to 8 pixels per degree (NASA PDS)",
         "mean_temp": "LRO Diviner Global Cumulative Products, bolometric temperature by local time (NASA PDS)",
@@ -131,6 +146,8 @@ def build_earth() -> tuple[dict, dict, list, np.ndarray]:
         "ndvi": grid.regrid_bilinear(ndvi, nlat, nlon, lat, lon),
         "snow_frac": grid.regrid_bilinear(snow, mlat, mlon, lat, lon),
     }
+    # MODIS reports no vegetation index over permanent ice and snow. Nothing grows there, so it is 0.
+    cols["ndvi"] = np.where(np.isnan(cols["ndvi"]) & (cols["snow_frac"] >= 0.5), 0.0, cols["ndvi"]).astype(np.float32)
     sources = {
         "mean_slope": "ETOPO 2022, 60 arc-second, averaged to 2 arc-minutes (NOAA NCEI)",
         "local_relief": "ETOPO 2022, 60 arc-second, averaged to 2 arc-minutes (NOAA NCEI)",
@@ -184,7 +201,8 @@ def write_world(world: str, cols: dict, sources: dict, keep: np.ndarray | None =
         "low_confidence_lat": config.LOW_CONFIDENCE_LAT,
         "features": [
             {"name": f["name"], "label": FEATURE_LABELS[f["name"]][0], "unit": f["unit"],
-             "tolerance": f["tolerance"], "group": FEATURE_LABELS[f["name"]][1]}
+             "tolerance": f["tolerance"], "group": FEATURE_LABELS[f["name"]][1],
+             "relative": f["name"] not in PHYSICAL_ONLY}
             for f in config.FEATURES
         ],
         "quantiles": {n: [round(q, 4) for q in grid.weighted_quantiles(table[:, i], weights)]

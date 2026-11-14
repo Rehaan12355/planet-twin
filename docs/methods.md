@@ -5,7 +5,7 @@ This page explains the method in plain words, including where it falls short.
 
 ## The idea in one paragraph
 
-Every world is cut into cells about 30 km wide. Each cell gets the same five measurements.
+Every world is cut into cells about 30 km wide. Each cell gets the same seven measurements.
 A match is the Earth land cell whose measurements are closest to the target cell's, judged
 with fixed tolerances in real units. Nothing is trained and nothing is hidden: you can check
 every number on the passport against its source.
@@ -24,7 +24,7 @@ with a cell on Earth.
 Only Earth's land cells are searched: 342,571 of them. A cell counts as land when at least
 half of it is land in the Natural Earth 1:50m map.
 
-## The five measurements
+## The seven measurements
 
 | Measurement | Unit | How it is computed | Tolerance |
 |---|---|---|---|
@@ -33,12 +33,19 @@ half of it is land in the Natural Earth 1:50m map.
 | Mean surface temperature | kelvin | Average surface temperature over a year, day and night | 15 |
 | Day-night temperature range | kelvin | Warmest minus coldest time of day, averaged over a year | 15 |
 | Albedo | 0 to 1 | Share of sunlight the ground reflects | 0.05 |
+| Yearly rain and snowfall | mm a year | Total precipitation in an average year. Zero on Mars and the Moon | 250 |
+| Plant cover | vegetation index (NDVI) | How green the ground is from orbit, averaged over the year. Zero on Mars and the Moon | 0.2 |
 
 Slope is measured at the same ground scale everywhere: 2 arc-minutes on Earth, 16 pixels per
 degree on Mars and 8 pixels per degree on the Moon, all close to 3.7 km. On a latitude-longitude
 grid the east-west pixel shrinks towards the poles, so its size is scaled by the cosine of
 latitude. Ocean pixels are set to sea level before Earth's slopes are computed, so a coastal
 cell is not scored on the sea floor.
+
+The last two measurements were added after the first validation test (see "How we tested it").
+Their tolerances are standard thresholds: 250 mm a year is the usual limit of a desert, and a
+vegetation index of 0.2 is the usual limit of barren land. MODIS reports no vegetation index
+over permanent ice and snow, so plant cover is set to zero there.
 
 Relief is shown on the passport in metres. It is scored on a log scale because the difference
 between 50 m and 500 m matters more than the difference between 3000 m and 3450 m.
@@ -58,11 +65,14 @@ left out of the average and the passport says so. It is never counted as zero.
 
 Three presets set the weights, and sliders allow any other mix.
 
-| Preset | Terrain | Temperature | Albedo |
-|---|---|---|---|
-| Balanced | 1 | 1 | 1 |
-| Terrain and mobility | 3 | 0.5 | 0.5 |
-| Thermal hardware | 0.5 | 3 | 1 |
+| Preset | Terrain | Temperature | Albedo | Dryness and bare ground |
+|---|---|---|---|---|
+| Balanced | 1 | 1 | 1 | 1 |
+| Terrain and mobility | 3 | 0.5 | 0.5 | 1 |
+| Thermal hardware | 0.5 | 3 | 1 | 1 |
+
+Each weight applies to every measurement in its group: slope and relief are terrain, the two
+temperature rows are temperature, and rainfall and plant cover are dryness and bare ground.
 
 The five best matches are kept at least 300 km apart, so the results are five places and not
 five neighbouring cells.
@@ -76,6 +86,8 @@ a lunar crater, the temperature row scores zero and the passport says so.
 within its own world, with a tolerance of 10 percentile points. Your town's twin on Mars is
 the place that is as steep, as warm and as bright *for Mars* as your town is *for Earth*.
 It is labelled as relative everywhere it appears, because your town is not physically like Mars.
+Rainfall and plant cover are left out of the relative match: they are zero everywhere on Mars,
+so they have no rank there.
 
 ## Where the numbers come from
 
@@ -84,9 +96,11 @@ It is labelled as relative everywhere it appears, because your town is not physi
 | Slope, relief | ETOPO 2022 (NOAA) | MOLA topography (NASA) | LOLA topography (NASA) |
 | Temperature | MERRA-2 skin temperature, through NASA POWER | NASA Ames Legacy Mars climate model | Diviner radiometer (NASA) |
 | Albedo | CERES surface albedo, through NASA POWER | TES bolometric albedo (NASA, USGS) | LOLA 1064 nm albedo (NASA) |
+| Rain and snowfall | MERRA-2 precipitation, through NASA POWER | Zero | Zero |
+| Plant cover | MODIS vegetation index (NASA) | Zero | Zero |
 
-Rainfall, snow cover (MERRA-2) and the vegetation index (MODIS NDVI) are shown on Earth's
-passports as context. They are not part of the score. Full addresses, sizes, dates and licences
+Snow cover (MERRA-2) is shown on Earth's passports as context and drives the "Hide ice and
+snow" switch. It is not part of the score. Full addresses, sizes, dates and licences
 are in [DATA_SOURCES.md](https://github.com/Rehaan12355/planet-twin/blob/main/DATA_SOURCES.md).
 
 ## What changed from the plan
@@ -129,45 +143,59 @@ Natural background on Earth averages about 2.4 mSv a year (UNSCEAR). Curiosity's
 measured about 0.67 mSv a day on the surface of Mars (Hassler and others, 2014) and Chang'e 4
 measured about 1.4 mSv a day on the Moon (Zhang and others, 2020). Every passport lists these.
 
-**Mars is cold.** With temperature in the score, the closest matches to most of Mars are ice
-sheets and high cold deserts. That is a real finding. The "Hide ice and snow" switch removes
-cells that are snow-covered for half the year or more, and it is on by default so that the
-results include places people can work in. Turn it off to see the unfiltered answer.
+**Mars is cold.** No place on Earth comes close to Mars on temperature, so both temperature
+rows score near zero almost everywhere and the best overall scores are about 70 out of 100.
+Under the Thermal hardware preset, which weights temperature most, the closest matches are in
+Antarctica. That is a real finding. The "Hide ice and snow" switch removes cells that are
+snow-covered for half the year or more, and it is on by default so that the results are
+places people can work in. Turn it off to see the unfiltered answer.
 
 **A match is a candidate, not a discovery.** The engine has never seen the rocks, the dust or
 the water chemistry. Any site it suggests needs a field check.
 
 ## How we tested it
 
-See the [validation page](./validation.html) for the full numbers. In short:
+See the [validation page](./validation.html) for the full numbers. The test is a blind one:
+the engine was never told about the Atacama, Devon Island, Death Valley and twelve other
+sites scientists already use. We check how highly it ranks them for ten named Mars targets.
+Chance would put 10% of them in the best 10% of Earth's land.
 
-- **Blind test on famous analog sites: the engine does not find them.** It was never told about
-  the Atacama, Devon Island, Death Valley and twelve other sites scientists already use. Across
-  ten Mars targets, 7% of those sites land in the best 10% of Earth's land with the Balanced
-  preset, 5% with Terrain and mobility and 6% with Thermal hardware. Chance would give 10%.
-  The reason is on the validation page: Mars is so much colder than those sites that
-  temperature scores near zero for almost all of Earth, and slope, relief and albedo alone do
-  not single out a famous desert. The sites were chosen for minerals, chemistry and access,
-  which this engine cannot see.
-- **Stability: partly.** When a Mars target is moved by one cell, 54% of the top-five matches
-  stay within 600 km of an original match. Many Earth cells tie at nearly the same score, so
-  the top five can jump between look-alike regions. The heat layer shows the whole field of
-  candidates and is the better guide.
-- **Self-match: passed.** An Earth cell searched against Earth returns itself with a score of
+**The first version failed this test.** It scored five measurements (slope, relief, mean
+temperature, day-night range, albedo) and placed 7% of the famous sites in the best 10% with
+the Balanced preset, 5% with Terrain and mobility and 6% with Thermal hardware. Mars is so
+much colder than those sites that temperature scored near zero for almost all of Earth, and
+slope, relief and albedo alone could not tell a desert from a rainforest.
+
+**One tolerance change did not help.** The plan allowed the tolerances to be revisited once.
+Doubling the two temperature tolerances from 15 K to 30 K gave 8%, 5% and 3%, so the original
+values were kept.
+
+**Then we changed the method.** Mars and the Moon have no rain and no plants, so we added
+rainfall and plant cover to the score with a target of zero, using the standard thresholds
+described above. We set those thresholds first, ran the test once, and changed nothing after.
+The result: 15% (Balanced), 17% (Terrain and mobility) and 17% (Thermal hardware) of the
+famous sites now land in the best 10%.
+
+**How much to trust that.** Less than a test planned in advance. The change came after a
+failure, and the famous sites are mostly deserts, so adding dryness was always likely to help
+them. The margin is modest: about one and a half times chance. It supports the claim that the
+engine now points toward dry, bare, Mars-like land. It does not show that a high score makes
+a place a good analog.
+
+**Other checks.**
+
+- *Stability: passed.* When a Mars target is moved by one cell, 71% of the top-five matches
+  stay within 600 km of an original match. (The first version managed 54%.)
+- *Self-match: passed.* An Earth cell searched against Earth returns itself with a score of
   100, in 200 of 200 random trials.
-- **Reader checks: passed.** Each data reader puts known landmarks in the right place:
+- *Reader checks: passed.* Each data reader puts known landmarks in the right place:
   Olympus Mons is among the highest cells on Mars, a Himalaya cell has over 3000 m of relief,
   the central Sahara is flat and brighter than the Amazon, Mars is colder at its poles, and
   the lunar equator swings by 296 K between day and night.
 
-The plan allowed the tolerances to be revisited once after the blind test. We tried doubling
-the two temperature tolerances from 15 K to 30 K, because at 15 K they score near zero for
-about 80% of Earth's land against any Mars target. The blind-test numbers became 8%, 5% and
-3%, which is no better, so the original tolerances were kept.
-
 ## What this means for using Planet Twin
 
-Use it to shortlist regions whose terrain and brightness match a target, and to see at a glance
-how far every place on Earth falls short on temperature. Do not use a high rank as proof that
-a place is a good analog. The engine cannot see geology, chemistry or dust, and it did not
-rediscover the sites that experts picked for those reasons.
+Use it to shortlist dry, bare regions whose terrain and brightness match a target, and to see
+at a glance how far every place on Earth falls short on temperature. Do not use a high rank
+as proof that a place is a good analog. The engine cannot see geology, chemistry or dust, and
+most famous sites still rank outside its top 10%.

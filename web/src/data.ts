@@ -1,7 +1,7 @@
 // Loads the per-world feature files written by pipeline/build_features.py.
 
 export type WorldName = 'earth' | 'mars' | 'moon';
-export type Group = 'terrain' | 'temperature' | 'albedo';
+export type Group = 'terrain' | 'temperature' | 'albedo' | 'dryness';
 
 export interface FeatureDef {
   name: string;
@@ -9,6 +9,7 @@ export interface FeatureDef {
   unit: string;
   tolerance: number;
   group: Group;
+  relative: boolean; // false for measurements that are zero everywhere on the target worlds
 }
 
 export interface Meta {

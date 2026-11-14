@@ -17,12 +17,17 @@ FEATURES = [
     {"name": "mean_temp", "unit": "K", "tolerance": 15.0},
     {"name": "diurnal_range", "unit": "K", "tolerance": 15.0},
     {"name": "albedo", "unit": "", "tolerance": 0.05},
+    # Added after the first blind test (see docs/methods.md). Mars and the Moon have no rain
+    # and no plants, so their value is 0. Tolerances are standard thresholds, not tuned:
+    # 250 mm a year is the usual limit of a desert, NDVI 0.2 the usual limit of barren land.
+    {"name": "rain_mm", "unit": "mm/yr", "tolerance": 250.0},
+    {"name": "ndvi", "unit": "", "tolerance": 0.2},
 ]
 
 PRESETS = {
-    "balanced": {"terrain": 1.0, "temperature": 1.0, "albedo": 1.0},
-    "terrain": {"terrain": 3.0, "temperature": 0.5, "albedo": 0.5},
-    "thermal": {"terrain": 0.5, "temperature": 3.0, "albedo": 1.0},
+    "balanced": {"terrain": 1.0, "temperature": 1.0, "albedo": 1.0, "dryness": 1.0},
+    "terrain": {"terrain": 3.0, "temperature": 0.5, "albedo": 0.5, "dryness": 1.0},
+    "thermal": {"terrain": 0.5, "temperature": 3.0, "albedo": 1.0, "dryness": 1.0},
 }
 
 # Relative (hometown) mode tolerance, in percentile points.

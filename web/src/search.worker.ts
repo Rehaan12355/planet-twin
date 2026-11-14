@@ -68,7 +68,7 @@ function search(req: SearchRequest): SearchResponse {
   const stride = relative ? nf : meta.columns.length;
   const cols = meta.features.map((f, k) => (relative ? k : meta.columns.indexOf(f.name)));
   const inv = meta.features.map((f) => 1 / (relative ? RELATIVE_TOLERANCE : f.tolerance));
-  const wts = meta.features.map((f) => req.weights[f.group]);
+  const wts = meta.features.map((f) => (relative && !f.relative ? 0 : req.weights[f.group]));
   const nc = meta.columns.length;
   const snowCol = meta.columns.indexOf('snow_frac');
   const ndviCol = meta.columns.indexOf('ndvi');
@@ -89,7 +89,7 @@ function search(req: SearchRequest): SearchResponse {
     for (let k = 0; k < nf; k++) {
       const t = req.target[k];
       const e = values[o + cols[k]];
-      if (t !== t || e !== e) continue; // a missing feature is skipped, not scored as zero
+      if (wts[k] === 0 || t !== t || e !== e) continue; // a missing feature is skipped, not scored as zero
       const d = (e - t) * inv[k];
       sum += wts[k] * Math.exp(-0.5 * d * d);
       wsum += wts[k];

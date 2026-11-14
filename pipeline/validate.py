@@ -19,7 +19,7 @@ from . import config, grid
 
 OUT = Path(__file__).resolve().parent.parent / "web" / "public" / "data"
 GROUPS = {"mean_slope": "terrain", "local_relief": "terrain", "mean_temp": "temperature",
-          "diurnal_range": "temperature", "albedo": "albedo"}
+          "diurnal_range": "temperature", "albedo": "albedo", "rain_mm": "dryness", "ndvi": "dryness"}
 PRESET_LABELS = {"balanced": "Balanced", "terrain": "Terrain and mobility", "thermal": "Thermal hardware"}
 CHANCE_PERCENT = 10
 
@@ -108,72 +108,56 @@ def main() -> None:
     rng = np.random.default_rng(0)
     random_rows = rng.choice(len(earth.area), 5000, replace=False, p=earth.area / total_area)
     valid_analogs = [r for r in analog_rows if r >= 0]
-    has_ndvi = np.isfinite(earth.table[:, earth.meta["columns"].index("ndvi")])
-    ndvi = earth.table[:, earth.meta["columns"].index("ndvi")]
-    rain = earth.table[:, earth.meta["columns"].index("rain_mm")]
 
-    top_percent: dict[str, list[list[float | None]]] = {}
-    presets = []
-    follow_up = {}
-    for pid, weights in config.PRESETS.items():
-        ranks = np.stack([
-            top_percent_of_every_cell(score(earth, mars.features[mars.row(t["lat"], t["lon"])], weights))
-            for t in targets
-        ], axis=1)  # land cell x target
-        matrix = [[None if r < 0 or np.isnan(ranks[r, j]) else round(float(ranks[r, j]), 2)
-                   for j in range(len(targets))] for r in analog_rows]
-        flat = [v for row in matrix for v in row if v is not None]
-        top_percent[pid] = matrix
-        presets.append({
-            "id": pid, "label": PRESET_LABELS[pid], "pairs": len(flat),
-            "share_top10": round(100 * float(np.mean([v <= CHANCE_PERCENT for v in flat])), 1),
-            "median_top_percent": round(float(np.median(flat)), 1),
-        })
-        # Follow-up A: is each analog a good match for at least one target? Compared with random land.
-        best_analog = np.nanmin(ranks[valid_analogs], axis=1)
-        best_random = np.nanmin(ranks[random_rows], axis=1)
-        # Follow-up B: what is the best-scoring 1% of land like, in variables the score never sees?
-        best1 = (ranks <= 1.0).any(axis=1)
-        w = earth.area
+    def blind_test(preset_weights: dict, tolerance: np.ndarray | None = None):
+        """Rank every known analog for every target under each preset."""
+        matrices, summary, follow = {}, [], {}
+        for pid, weights in preset_weights.items():
+            ranks = np.stack([
+                top_percent_of_every_cell(score(earth, mars.features[mars.row(t["lat"], t["lon"])], weights, tolerance))
+                for t in targets
+            ], axis=1)  # land cell x target
+            matrix = [[None if r < 0 or np.isnan(ranks[r, j]) else round(float(ranks[r, j]), 2)
+                       for j in range(len(targets))] for r in analog_rows]
+            flat = [v for row in matrix for v in row if v is not None]
+            matrices[pid] = matrix
+            summary.append({
+                "id": pid, "label": PRESET_LABELS[pid], "pairs": len(flat),
+                "share_top10": round(100 * float(np.mean([v <= CHANCE_PERCENT for v in flat])), 1),
+                "median_top_percent": round(float(np.median(flat)), 1),
+            })
+            # Is each analog a top-10% match for at least one target? Random land sets the bar.
+            best_analog = np.nanmin(ranks[valid_analogs], axis=1)
+            best_random = np.nanmin(ranks[random_rows], axis=1)
+            follow[pid] = {
+                "analogs_with_a_top10_target": int((best_analog <= CHANCE_PERCENT).sum()),
+                "analogs": len(valid_analogs),
+                "random_share_with_a_top10_target": round(100 * float((best_random <= CHANCE_PERCENT).mean()), 1),
+                "random_cells": len(random_rows),
+            }
+        return matrices, summary, follow
 
-        def share_barren(mask):
-            m = mask & has_ndvi
-            return round(100 * float(w[m & (ndvi < 0.2)].sum() / w[m].sum()), 1)
+    top_percent, presets, follow_up = blind_test(config.PRESETS)
 
-        def median_rain(mask):
-            order = np.argsort(rain[mask])
-            cum = np.cumsum(w[mask][order])
-            return round(float(rain[mask][order][np.searchsorted(cum, cum[-1] / 2)]))
+    # The first version of the engine scored five measurements, without rainfall and plant
+    # cover. Its blind test is re-run here (dryness weight 0) so both results stay on record.
+    five_only = {pid: {**w, "dryness": 0.0} for pid, w in config.PRESETS.items()}
+    _, first_presets, first_follow = blind_test(five_only)
 
-        everything = np.ones(len(w), bool)
-        follow_up[pid] = {
-            "analogs_with_a_top10_target": int((best_analog <= CHANCE_PERCENT).sum()),
-            "analogs": len(valid_analogs),
-            "random_share_with_a_top10_target": round(100 * float((best_random <= CHANCE_PERCENT).mean()), 1),
-            "random_cells": len(random_rows),
-            "barren_share_best1": share_barren(best1), "barren_share_all": share_barren(everything),
-            "median_rain_best1": median_rain(best1), "median_rain_all": median_rain(everything),
-        }
-
-    # The one tolerance revisit the plan allows, recorded here so it can be re-run.
-    # At 15 K both temperature rows are near zero for most of Earth against any Mars target,
-    # so they cannot rank places. Doubling them to 30 K was tried once and judged by the
-    # headline number; it did not improve it, so the original tolerances were kept.
+    # The one tolerance revisit the plan allowed, tried on that first version. At 15 K both
+    # temperature rows are near zero for most of Earth against any Mars target. Doubling them
+    # to 30 K did not improve the headline number, so the original tolerances were kept.
     wide = earth.tolerance.copy()
     wide[[2, 3]] = 30.0
-    trial = []
-    for pid, weights in config.PRESETS.items():
-        vals = []
-        for t in targets:
-            r = top_percent_of_every_cell(score(earth, mars.features[mars.row(t["lat"], t["lon"])], weights, wide))
-            vals += [r[a] for a in valid_analogs if np.isfinite(r[a])]
-        trial.append({"label": PRESET_LABELS[pid], "share_top10": round(100 * float(np.mean(np.array(vals) <= CHANCE_PERCENT)), 1)})
-    tolerance_trial = {
-        "change": "Mean temperature and day-night range tolerances doubled from 15 K to 30 K",
-        "reason": "At 15 K both temperature rows score near zero for most of Earth's land against any Mars target, "
-                  "so they cannot tell a cold dry plateau from a rainforest.",
-        "presets": trial,
-        "kept": False,
+    _, trial_presets, _ = blind_test(five_only, wide)
+    first_version = {
+        "presets": first_presets,
+        "follow_up": first_follow,
+        "tolerance_trial": {
+            "change": "Mean temperature and day-night range tolerances doubled from 15 K to 30 K",
+            "presets": [{"label": p["label"], "share_top10": p["share_top10"]} for p in trial_presets],
+            "kept": False,
+        },
     }
 
     # 2. Self-match: an Earth cell searched against Earth must come back first with a score of 100.
@@ -211,18 +195,20 @@ def main() -> None:
         "analogs": [{**a, "on_land": r >= 0} for a, r in zip(analogs, analog_rows)],
         "top_percent": top_percent,
         "follow_up": follow_up,
-        "tolerance_trial": tolerance_trial,
+        "first_version": first_version,
         "self_match": self_match,
         "stability": stability,
         "reader_checks": [c for world in ("earth", "mars", "moon") for c in checks.get(world, [])],
         "notes": [
             "Famous analog sites were chosen for many reasons this engine cannot see: minerals, water chemistry, "
             "microbes, road access. A site picked for its rocks can rank low here and still be a good analog.",
-            "The score uses five physical measurements on cells about 30 km wide. It says nothing about a single "
+            "The score uses seven measurements on cells about 30 km wide. It says nothing about a single "
             "outcrop, crater or lava tube inside a cell.",
             "Ranks count land area, so the large polar cells of the grid do not inflate the result.",
-            "Tolerances are the first-guess values from the project plan. One change was tried after seeing these "
-            "results and is reported above; it did not help, so the original values stand.",
+            "Rainfall and plant cover were added to the score after the first blind test failed. Their tolerances "
+            "are standard thresholds (250 mm a year for a desert, a vegetation index of 0.2 for barren land) and "
+            "were set before this result was computed. Because the change came after seeing a result, treat the "
+            "second result as weaker evidence than a test planned in advance.",
         ],
     }
     (OUT / "validation.json").write_text(json.dumps(result))
@@ -231,9 +217,9 @@ def main() -> None:
               f"(chance 10%), median top {p['median_top_percent']:.0f}%, {p['pairs']} pairs")
     for pid, f in follow_up.items():
         print(f"  {pid}: {f['analogs_with_a_top10_target']}/{f['analogs']} analogs are top-10% for at least one target "
-              f"(random land: {f['random_share_with_a_top10_target']}%); best 1% of land is {f['barren_share_best1']}% barren "
-              f"(all land {f['barren_share_all']}%), median rain {f['median_rain_best1']} mm (all land {f['median_rain_all']} mm)")
-    print("  30 K temperature tolerance trial:", ", ".join(f"{t['label']} {t['share_top10']}%" for t in trial))
+              f"(random land: {f['random_share_with_a_top10_target']}%)")
+    print("  first version (five measurements):", ", ".join(f"{p['label']} {p['share_top10']}%" for p in first_presets))
+    print("  first version, 30 K trial:", ", ".join(f"{p['label']} {p['share_top10']}%" for p in trial_presets))
     for c in (self_match, stability):
         print(f"{'PASS' if c['passed'] else 'FAIL'} {c['name']}: {c['detail']}")
 

@@ -15,8 +15,8 @@ match among 342,571 land cells. An analog passport shows each measurement on bot
 real units, where the analogy breaks, and what a mission could test there.
 
 - **Three worlds, one grid.** Every world is cut into cells about 30 km wide, each with the same
-  five measurements: mean slope, local relief, mean surface temperature, day-night temperature
-  range and albedo.
+  seven measurements: mean slope, local relief, mean surface temperature, day-night temperature
+  range, albedo, yearly rainfall and plant cover.
 - **One transparent score.** Closeness is judged with fixed tolerances in real units. Nothing is
   trained. All matching runs in your browser in about 30 ms.
 - **Three purposes.** Balanced, Terrain and mobility, and Thermal hardware presets, plus sliders.
@@ -25,17 +25,21 @@ real units, where the analogy breaks, and what a mission could test there.
 
 ## What we found
 
-- With temperature in the score, almost nowhere on Earth is like Mars. Typical Mars targets
-  average about 210 K with a swing of about 80 K between day and night; the best Earth cells
-  reach 60 out of 100, with terrain and albedo matching and temperature scoring zero.
-- For Jezero Crater, the best terrain-and-albedo matches are dry basins in south-east Iran, the
-  Chilean Puna beside the Atacama, Oman and northern Chad. With the Thermal hardware preset and
-  ice allowed, the answer is Antarctica.
-- **The blind test failed, and we report it.** The engine was never told about 15 famous analog
-  sites. Across ten Mars targets it placed 7% of them (Balanced), 5% (Terrain and mobility) and
-  6% (Thermal hardware) in the best 10% of Earth's land. Chance would give 10%. Five coarse
-  physical measurements do not rediscover sites that experts chose for minerals, chemistry and
-  access. See the [validation page](https://rehaan12355.github.io/planet-twin/validation.html).
+- For Jezero Crater, the closest matches are in the Atacama region of Chile, the Turpan basin
+  in China, the Tibesti of northern Chad and the deserts of south-east Iran. For Gale Crater
+  they are the Atacama again and the Dunhuang area of China.
+- Nowhere on Earth is much like Mars on temperature. Typical Mars targets average about 210 K
+  with a swing of about 80 K between day and night, so the best Earth cells reach about 70 out
+  of 100: terrain, albedo, dryness and bare ground match, and both temperature rows score zero.
+  With the Thermal hardware preset and ice allowed, the closest matches are in Antarctica.
+- **The first blind test failed, and we report it.** The engine was never told about 15 famous
+  analog sites. The first version scored five measurements and placed 7% (Balanced), 5%
+  (Terrain and mobility) and 6% (Thermal hardware) of them in the best 10% of Earth's land.
+  Chance gives 10%.
+- **After adding rainfall and plant cover, it is above chance by a modest margin:** 15%, 17%
+  and 17%. That change was made after seeing the failure, with thresholds fixed beforehand and
+  a single re-run, so it is weaker evidence than a test planned in advance. Both results are
+  on the [validation page](https://rehaan12355.github.io/planet-twin/validation.html).
 - A match from this tool is a candidate region for field checks, not a discovery.
 
 ## How it works
