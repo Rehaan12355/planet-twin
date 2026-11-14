@@ -12,7 +12,12 @@ $(VENV)/bin/activate: pipeline/requirements.txt
 venv: $(VENV)/bin/activate
 
 data: venv
+	$(PY) -m pipeline.sources check
+	$(PY) -m pipeline.sources download
 	$(PY) -m pipeline.build_features
+	$(PY) -m pipeline.textures
+	$(PY) -m pipeline.validate
+	$(PY) -m pipeline.sources docs
 
 test: venv
 	$(PY) -m pytest -q pipeline/tests

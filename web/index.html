@@ -4,22 +4,74 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Planet Twin</title>
+    <meta name="description" content="Find the place on Earth most like any spot on Mars or the Moon, and see why." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body>
-    <header>
-      <h1>Planet Twin</h1>
-      <p>Find the place on Earth most like any spot on Mars or the Moon.</p>
+  <body class="app">
+    <header class="masthead">
+      <a class="wordmark" href="./">Planet Twin</a>
+      <p class="pitch">Pick a spot on Mars or the Moon. See the place on Earth most like it, and where the likeness ends.</p>
+      <nav>
+        <a href="./methods.html">Methods</a>
+        <a href="./validation.html">Validation</a>
+        <a href="https://github.com/Rehaan12355/planet-twin">Code</a>
+      </nav>
     </header>
-    <main>
-      <section class="globe-panel">
-        <h2 id="target-label">Mars</h2>
+
+    <section class="controls" aria-label="Search settings">
+      <div class="control">
+        <span class="control-label" id="world-label">Target world</span>
+        <div class="segmented" role="group" aria-labelledby="world-label">
+          <button type="button" data-world="mars" aria-pressed="true">Mars</button>
+          <button type="button" data-world="moon" aria-pressed="false">Moon</button>
+        </div>
+      </div>
+      <label class="control">
+        <span class="control-label">Named site</span>
+        <select id="site-select"></select>
+      </label>
+      <div class="control">
+        <span class="control-label" id="preset-label">What you want to test</span>
+        <div class="segmented" id="presets" role="group" aria-labelledby="preset-label"></div>
+      </div>
+      <details class="control weights">
+        <summary>Adjust weights</summary>
+        <div class="sliders" id="sliders"></div>
+      </details>
+      <div class="control checks">
+        <label><input type="checkbox" id="filter-ice" checked /> Hide ice and snow</label>
+        <label><input type="checkbox" id="filter-barren" /> Barren land only</label>
+        <label><input type="checkbox" id="show-heat" checked /> Heat layer</label>
+        <label><input type="checkbox" id="show-analogs" /> Known analog sites</label>
+      </div>
+      <label class="control hometown">
+        <span class="control-label">Hometown twin on Mars</span>
+        <input id="city-input" type="search" list="city-list" placeholder="Type a city" autocomplete="off" />
+        <datalist id="city-list"></datalist>
+      </label>
+    </section>
+
+    <main class="stage">
+      <section class="globe-panel" aria-label="Target world">
+        <h2 id="target-title">Mars</h2>
         <div id="target-globe" class="globe"></div>
+        <p class="hint" id="target-hint">Click anywhere on the globe, or choose a named site.</p>
       </section>
-      <section class="globe-panel">
+      <section class="globe-panel" aria-label="Earth">
         <h2>Earth</h2>
         <div id="earth-globe" class="globe"></div>
+        <div class="legend" id="heat-legend" hidden>
+          <span>Match score</span><i class="ramp"></i><span>40</span><span class="ramp-end">100</span>
+        </div>
       </section>
+      <aside class="side" aria-live="polite">
+        <div id="status" class="status">Loading three worlds of data…</div>
+        <ol id="results" class="results" hidden></ol>
+        <article id="passport" class="passport" hidden></article>
+      </aside>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

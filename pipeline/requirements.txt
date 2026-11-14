@@ -6,3 +6,9 @@ netCDF4
 pandas
 pytest
 requests
+zarr
+fsspec
+aiohttp
+pyshp
+Pillow
+matplotlib

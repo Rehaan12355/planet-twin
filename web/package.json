@@ -9,7 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "globe.gl": "^2.34.0"
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "globe.gl": "^2.34.0",
+    "marked": "^18.2.0",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

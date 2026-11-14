@@ -1,0 +1,43 @@
+{
+ "earth": [
+  {
+   "name": "A Himalaya cell has relief above 3000 m",
+   "passed": true,
+   "detail": "3621 m near Everest"
+  },
+  {
+   "name": "A central Sahara cell has mean slope under 1 degree",
+   "passed": true,
+   "detail": "0.64 degrees at 23.5 N, 10.5 E"
+  },
+  {
+   "name": "Sahara albedo is higher than Amazon albedo",
+   "passed": true,
+   "detail": "Sahara 0.37, Amazon 0.12"
+  }
+ ],
+ "mars": [
+  {
+   "name": "MOLA elevations fall within the label's valid range",
+   "passed": true,
+   "detail": "-8177 to 21171 m against -8177 to 21171 m"
+  },
+  {
+   "name": "The Olympus Mons cell is among the highest on Mars",
+   "passed": true,
+   "detail": "cell mean 19563 m; 99.9th percentile of all cells is 11362 m"
+  },
+  {
+   "name": "Mars is colder at the poles than at the equator",
+   "passed": true,
+   "detail": "north 167 K, equator 218 K, south 164 K"
+  }
+ ],
+ "moon": [
+  {
+   "name": "The lunar equator has a day-night range above 200 K",
+   "passed": true,
+   "detail": "mean range within 2 degrees of the equator is 296 K"
+  }
+ ]
+}

@@ -1,26 +1,101 @@
 import Globe from 'globe.gl';
+import { CanvasTexture, Color, SRGBColorSpace } from 'three';
+import type { MeshPhongMaterial } from 'three';
 
-export type GlobeInstance = InstanceType<typeof Globe>;
-
-// Solid-colour placeholder until real NASA/USGS textures land in step 4.
-function placeholderTexture(color: string): string {
-  const canvas = document.createElement('canvas');
-  canvas.width = 2;
-  canvas.height = 1;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, 2, 1);
-  return canvas.toDataURL();
+export interface Pin {
+  lat: number;
+  lon: number;
+  kind: 'target' | 'rank' | 'analog' | 'city';
+  label: string;
+  title: string;
+  selected?: boolean;
+  onClick?: () => void;
 }
 
-export function createGlobe(el: HTMLElement, color: string): GlobeInstance {
-  const globe = new Globe(el)
-    .globeImageUrl(placeholderTexture(color))
-    .backgroundColor('rgba(0,0,0,0)')
-    .width(el.clientWidth)
-    .height(el.clientWidth);
-  new ResizeObserver(() => {
-    globe.width(el.clientWidth).height(el.clientWidth);
-  }).observe(el);
-  return globe;
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+/** globe.gl wants longitude in -180..180. */
+const lng = (lon: number) => ((((lon + 180) % 360) + 360) % 360) - 180;
+
+/** One globe with a paintable surface: a base texture plus an optional heat overlay. */
+export class WorldGlobe {
+  private globe: InstanceType<typeof Globe>;
+  private canvas = document.createElement('canvas');
+  private texture = new CanvasTexture(this.canvas);
+  private base: HTMLImageElement | null = null;
+  private heat: HTMLCanvasElement | null = null;
+
+  constructor(el: HTMLElement, atmosphere: string | null, onClick: (lat: number, lon: number) => void) {
+    this.canvas.width = 4096;
+    this.canvas.height = 2048;
+    this.texture.colorSpace = SRGBColorSpace;
+    this.globe = new Globe(el, { animateIn: false })
+      .backgroundColor('rgba(0,0,0,0)')
+      .showAtmosphere(atmosphere !== null)
+      .atmosphereColor(atmosphere ?? '#ffffff')
+      .atmosphereAltitude(0.12)
+      .width(el.clientWidth)
+      .height(el.clientHeight)
+      .onGlobeClick(({ lat, lng: x }) => onClick(lat, x))
+      .htmlElementsData([])
+      .htmlLat((d) => (d as Pin).lat)
+      .htmlLng((d) => lng((d as Pin).lon))
+      .htmlAltitude(0.01)
+      .htmlElement((d) => pinElement(d as Pin));
+    const material = this.globe.globeMaterial() as MeshPhongMaterial;
+    material.map = this.texture;
+    material.color = new Color(0xffffff);
+    material.needsUpdate = true;
+    this.globe.pointOfView({ lat: 15, lng: 0, altitude: 2.1 });
+    new ResizeObserver(() => this.globe.width(el.clientWidth).height(el.clientHeight)).observe(el);
+  }
+
+  async setTexture(url: string): Promise<void> {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    this.base = img;
+    this.paint();
+  }
+
+  setHeat(heat: HTMLCanvasElement | null): void {
+    this.heat = heat;
+    this.paint();
+  }
+
+  setPins(pins: Pin[]): void {
+    this.globe.htmlElementsData(pins);
+  }
+
+  flyTo(lat: number, lon: number, altitude = 1.5): void {
+    this.globe.pointOfView({ lat, lng: lng(lon), altitude }, reducedMotion.matches ? 0 : 1800);
+  }
+
+  private paint(): void {
+    const ctx = this.canvas.getContext('2d')!;
+    const { width, height } = this.canvas;
+    if (this.base) ctx.drawImage(this.base, 0, 0, width, height);
+    else {
+      ctx.fillStyle = '#2a3142';
+      ctx.fillRect(0, 0, width, height);
+    }
+    if (this.heat) ctx.drawImage(this.heat, 0, 0, width, height);
+    this.texture.needsUpdate = true;
+  }
+}
+
+function pinElement(pin: Pin): HTMLElement {
+  const el = document.createElement(pin.onClick ? 'button' : 'div');
+  el.className = `pin pin-${pin.kind}${pin.selected ? ' is-selected' : ''}`;
+  el.title = pin.title;
+  el.setAttribute('aria-label', pin.title);
+  el.textContent = pin.label;
+  if (pin.onClick) {
+    el.style.pointerEvents = 'auto';
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pin.onClick!();
+    });
+  }
+  return el;
 }
