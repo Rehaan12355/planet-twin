@@ -1,6 +1,6 @@
 import Globe from 'globe.gl';
 
-export type GlobeInstance = ReturnType<typeof Globe>;
+export type GlobeInstance = InstanceType<typeof Globe>;
 
 // Solid-colour placeholder until real NASA/USGS textures land in step 4.
 function placeholderTexture(color: string): string {
