@@ -1,0 +1,19 @@
+world,site,lat,lon_e,verified
+mars,Jezero Crater,18.4,77.5,no
+mars,Gale Crater,-4.6,137.4,no
+mars,Meridiani Planum,-2.0,354.5,no
+mars,Gusev Crater,-14.6,175.5,no
+mars,Elysium Planitia (InSight),4.5,135.6,no
+mars,Chryse Planitia (Viking 1),22.3,312.0,no
+mars,Utopia Planitia (Viking 2),47.6,134.3,no
+mars,Phoenix landing site,68.2,234.3,no
+mars,Arcadia Planitia,47.0,184.0,no
+mars,Melas Chasma,-10.0,287.0,no
+moon,Shackleton crater rim,-89.8,0.0,no
+moon,Mons Mouton,-84.6,31.5,no
+moon,Malapert Massif,-86.0,3.0,no
+moon,Nobile crater rim,-85.2,36.0,no
+moon,Apollo 11 site,0.7,23.5,no
+moon,Apollo 17 site,20.2,30.8,no
+moon,Marius Hills pit,14.1,303.2,no
+moon,Schrodinger basin,-75.0,132.0,no
